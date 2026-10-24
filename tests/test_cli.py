@@ -55,6 +55,43 @@ class Udev(unittest.TestCase):
             self.assertIn(f'ATTRS{{idProduct}}=="{pid:04x}"', text)
         self.assertIn('TAG+="uaccess"', text)
 
+    def test_group_rules_for_systems_without_logind(self):
+        lines = [line for line in rules(group="hyperx").splitlines() if 'ATTRS{idVendor}' in line]
+        self.assertTrue(lines)
+        for line in lines:
+            self.assertTrue(line.endswith('TAG+="uaccess", GROUP="hyperx", MODE="0660"'), line)
+        self.assertNotIn("GROUP=", rules())
+
+    def test_one_parent_device_per_rule(self):
+        # udev matches all ATTRS of a rule on the same parent: the interface number (USB interface)
+        # and the ids (USB device) can never match together, so the interface goes through ENV
+        lines = [line for line in rules().splitlines() if line and not line.startswith("#")]
+        for line in lines:
+            if "ATTRS{idVendor}" in line:
+                self.assertNotIn("ATTRS{bInterfaceNumber}", line)
+            self.assertNotIn("#", line, "udev rejects comments after the keys")
+        self.assertIn('ENV{HYPERX_LINUX_IF}=="03", ATTRS{idVendor}=="03f0", ATTRS{idProduct}=="02cc"', rules())
+
+    def test_udevadm_verify(self):
+        import shutil
+        import subprocess
+        import tempfile
+        if not shutil.which("udevadm"):
+            self.skipTest("no udevadm")
+        with tempfile.NamedTemporaryFile("w", suffix=".rules") as f:
+            f.write(rules())
+            f.flush()
+            r = subprocess.run(["udevadm", "verify", "--no-style", f.name], capture_output=True, text=True)
+        if "verify" in r.stderr and "nknown" in r.stderr:
+            self.skipTest("udevadm without verify (systemd < 254)")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_install_command(self):
+        from hyperx_linux import APP_ID
+        from hyperx_linux.udev import RULES_PATH, install_command
+        self.assertTrue(install_command(False).startswith("hyperx-linux udev-rules | sudo tee " + RULES_PATH))
+        self.assertTrue(install_command(True).startswith(f"flatpak run {APP_ID} udev-rules"))
+
 
 if __name__ == "__main__":
     unittest.main()

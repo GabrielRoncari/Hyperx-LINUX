@@ -2,9 +2,14 @@
 
 Generated from the drivers by `python3 -m tools.gen_docs`; do not edit by hand.
 
-**55 drivers**: 1 verified, 35 community, 19 experimental
+**55 drivers**: 2 verified, 34 community, 19 experimental
 (see [support levels](CONTRIBUTING.md#support-levels)). Protocol notes per family are in
 [docs/devices](docs/devices). Bootloader / firmware-update ids are never opened.
+
+Every headset also gets the [audio engine](docs/audio.md) (spatial audio, software equalizer when it has
+none of its own, voice processing), made by PipeWire on the computer: spatial, spatial-width,
+spatial-experience, software-eq, mic-noise, mic-highpass, mic-preset. Headsets whose buttons reach the
+computer as media keys can give them other actions (buttons, button-macros), done by the app.
 
 | Type | Device | USB IDs | Support | Features |
 |---|---|---|---|---|
@@ -27,12 +32,12 @@ Generated from the drivers by `python3 -m tools.gen_docs`; do not edit by hand.
 | headset | HyperX Cloud Stinger 3 Wireless | `03f0:01c6, 03f0:03c6, 03f0:0dc5` | experimental | battery, mic-mute, sidetone, sidetone-level, auto-off, color |
 | headset | HyperX Cloud Stinger Core Wireless | `03f0:0a93` | community | battery |
 | headset | HyperX Cloud Stinger Core Wireless | `0951:170b` | experimental | battery |
-| keyboard | HyperX Alloy Elite 2 | `0951:1711, 03f0:058f` | community | color, brightness |
+| keyboard | HyperX Alloy Elite 2 | `0951:1711, 03f0:058f` | community | effect, color, color2, speed, direction, brightness, key-colors, save-lighting, game-mode, block-alt-tab, block-alt-f4, block-shift-tab, block-ctrl-esc, macro-record, macros, remap, layout |
 | keyboard | HyperX Alloy Elite RGB | `0951:16be` | community | color, brightness |
 | keyboard | HyperX Alloy FPS RGB | `0951:16dc` | community | color, brightness |
-| keyboard | HyperX Alloy Origins | `0951:16e5, 03f0:0591` | community | color, brightness |
-| keyboard | HyperX Alloy Origins 60 | `0951:1734, 03f0:0c8e` | community | color, brightness |
-| keyboard | HyperX Alloy Origins 65 | `03f0:038f` | community | color, brightness |
+| keyboard | HyperX Alloy Origins | `0951:16e5, 03f0:0591` | community | effect, color, color2, speed, direction, brightness, key-colors, save-lighting, game-mode, block-alt-tab, block-alt-f4, block-shift-tab, block-ctrl-esc, macro-record, macros, remap, layout |
+| keyboard | HyperX Alloy Origins 60 | `0951:1734, 03f0:0c8e` | community | effect, color, color2, speed, direction, brightness, key-colors, save-lighting, game-mode, block-alt-tab, block-alt-f4, block-shift-tab, block-ctrl-esc, macro-record, macros, remap, fn-lock, factory-reset, layout |
+| keyboard | HyperX Alloy Origins 65 | `03f0:038f` | verified | effect, color, color2, speed, direction, brightness, key-colors, save-lighting, game-mode, block-alt-tab, block-alt-f4, block-shift-tab, block-ctrl-esc, macro-record, macros, remap, fn-lock, factory-reset, layout |
 | keyboard | HyperX Alloy Origins Core | `0951:16e6, 03f0:098f` | community | color, brightness |
 | keyboard | HyperX Alloy Rise | `03f0:0fa0` | experimental | color, brightness |
 | keyboard | HyperX Alloy Rise 75 | `03f0:02a1` | community | color, brightness |

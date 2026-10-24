@@ -7,9 +7,8 @@ flash on every change, are left out. Full notes: docs/devices/keyboards.md
 
 Families:
   A  Alloy Elite RGB, Alloy FPS RGB: feature report 07, 264 bytes, one packet per channel.
-  B  Alloy Origins, Elite 2, Origins 60/65: feature report without id (65 bytes) on interface 0
-     (the vendor interface 3 gets no driver on Linux): 04 F2 init + N packets of 16 x "81 R G B".
-     Note: this needs hidraw access to the keyboard's boot interface.
+  B  Alloy Origins, Elite 2, Origins 60/65: moved to ngenuity_kb.py, which drives the full NGENUITY
+     protocol of these models (effects, onboard lighting, remaps, macros, game mode).
   C  Alloy Origins Core: 64-byte output report without id: A2 <chunk> 00 <len> + planar GRB buffer.
   D  Alloy Rise, Rise 75, Origins 2 65, Eve 1800: Universal protocol, 44 01 / 44 02 frames.
 """
@@ -130,63 +129,6 @@ class AlloyFPSRGB(AlloyEliteRGB):
     sources = ("https://gitlab.com/CalcProgrammer1/OpenRGB", "https://github.com/Grabulosaure/hyperx_alloy_fps_rgb")
 
 
-# ---------------------------------------------------------------------- family B
-class F2Keyboard(KeyboardLighting):
-    interfaces = (0,)  # see the module docstring
-    keepalive_seconds = 0.1  # one source says the Origins forgets the frame in under a second
-    packets = 9
-    empty_slots: frozenset[int] = frozenset()
-
-    def send_frame(self, rgb):
-        init = bytearray(65)
-        init[1:3] = b"\x04\xF2"
-        init[9] = self.packets
-        self.node.set_feature(bytes(init))
-        for k in range(self.packets):
-            p = bytearray(65)
-            for i in range(16):
-                slot = k * 16 + i
-                p[1 + 4 * i] = 0x81
-                if slot not in self.empty_slots:
-                    p[2 + 4 * i:5 + 4 * i] = bytes(rgb)
-            self.node.set_feature(bytes(p))
-
-
-class AlloyOrigins(F2Keyboard):
-    name = "HyperX Alloy Origins"
-    support = Support.COMMUNITY
-    ids = ((0x0951, 0x16E5, ""), (0x03F0, 0x0591, ""))
-    empty_slots = frozenset({23, 29, 41, 47, 59, 70, 71, 87, 88, 93, 99, 100, 102, 108, 113, 114, 120, 123, 124}
-                            | set(range(126, 144)))
-    sources = ("https://gitlab.com/CalcProgrammer1/OpenRGB", "https://github.com/Shehtman/hyperx-studio")
-
-
-class AlloyElite2(F2Keyboard):
-    name = "HyperX Alloy Elite 2"
-    support = Support.COMMUNITY
-    ids = ((0x0951, 0x1711, ""), (0x03F0, 0x058F, ""))
-    empty_slots = frozenset({23, 29, 41, 47, 70, 71, 76, 77, 87, 88, 93, 99, 100, 102, 108, 113})
-    sources = ("https://gitlab.com/CalcProgrammer1/OpenRGB/-/merge_requests/427",)
-
-
-class AlloyOrigins60(F2Keyboard):
-    name = "HyperX Alloy Origins 60"
-    support = Support.COMMUNITY
-    ids = ((0x0951, 0x1734, ""), (0x03F0, 0x0C8E, ""))
-    packets = 5
-    empty_slots = frozenset({0, 14, 42, 45, 56, 67, 68, 69} | set(range(71, 80)))
-    sources = ("https://gitlab.com/CalcProgrammer1/OpenRGB/-/merge_requests/1617", "https://github.com/EriksRemess/hyperrust")
-
-
-class AlloyOrigins65(F2Keyboard):
-    name = "HyperX Alloy Origins 65"
-    support = Support.COMMUNITY
-    ids = ((0x03F0, 0x038F, ""),)
-    packets = 5
-    empty_slots = frozenset({0, 14, 42, 45, 56, 65, 66, 67} | set(range(77, 80)))
-    sources = ("https://gitlab.com/CalcProgrammer1/OpenRGB/-/merge_requests/1739",)
-
-
 # ---------------------------------------------------------------------- family C
 class AlloyOriginsCore(KeyboardLighting):
     name = "HyperX Alloy Origins Core"
@@ -298,5 +240,5 @@ class Eve1800(UniversalKeyboard):
     sources = ("https://gitlab.com/CalcProgrammer1/OpenRGB/-/merge_requests/3321",)
 
 
-MODELS = (AlloyEliteRGB, AlloyFPSRGB, AlloyOrigins, AlloyElite2, AlloyOrigins60, AlloyOrigins65,
+MODELS = (AlloyEliteRGB, AlloyFPSRGB,
           AlloyOriginsCore, AlloyRise75, AlloyRise, Origins2_65, Eve1800)

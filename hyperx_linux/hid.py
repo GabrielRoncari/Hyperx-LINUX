@@ -181,7 +181,8 @@ class Node:
         try:
             self.fd = os.open(info.path, os.O_RDWR | os.O_NONBLOCK)
         except PermissionError as e:
-            raise HidError(f"no permission on {info.path}: install the udev rules") from e
+            raise HidError(f"no permission on {info.path}: click \"Allow access\" in the app, "
+                           "or run ./install.sh again") from e
         except OSError as e:
             raise HidError(f"cannot open {info.path}: {e}") from e
         self.listeners: list[Callable[[bytes], None]] = []

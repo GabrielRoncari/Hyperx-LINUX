@@ -3,6 +3,7 @@
 Generated from NGENUITY 3.1.0 (hub product table) and NGENUITY Legacy 2.38 (HID path table);
 see docs/ngenuity-catalog.md. Only facts (ids, names) are kept.
 """
+from __future__ import annotations
 
 # (vid, pid): (name, kind)
 PRODUCTS: dict[tuple[int, int], tuple[str, str]] = {

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.gabrielroncari.HyperXLinux</id>
+  <name>HyperX Linux</name>
+  <summary>Control panel for HyperX headsets, mice, keyboards and microphones</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer id="io.github.gabrielroncari">
+    <name>Roncari</name>
+  </developer>
+  <description>
+    <p>An unofficial replacement for NGENUITY on Linux: battery, microphone mute and monitoring,
+    equalizer, auto power-off, DPI, polling rate and lighting for HyperX peripherals, with a tray
+    icon, notifications and a command line.</p>
+    <p>Not affiliated with HP or HyperX.</p>
+  </description>
+  <launchable type="desktop-id">io.github.gabrielroncari.HyperXLinux.desktop</launchable>
+  <url type="homepage">https://github.com/GabrielRoncari/Hyperx-LINUX</url>
+  <url type="bugtracker">https://github.com/GabrielRoncari/Hyperx-LINUX/issues</url>
+  <content_rating type="oars-1.1"/>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <releases>
+    <release version="0.3.0" date="2026-10-24"/>
+  </releases>
+</component>

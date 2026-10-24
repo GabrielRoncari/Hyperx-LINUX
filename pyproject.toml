@@ -8,9 +8,9 @@ dynamic = ["version"]
 description = "Linux control panel for HyperX peripherals (unofficial NGENUITY replacement)"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
-requires-python = ">=3.10"
-# The GUI needs PyGObject with GTK 4.12+ and libadwaita 1.5+, best installed from the distribution
-# (python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1). The CLI only needs the standard library.
+requires-python = ">=3.8"
+# The CLI only needs the standard library. The window needs PyGObject and pycairo plus GTK 4.6+ and
+# libadwaita 1.1+ from the distribution: install.sh installs all of it (see requirements.txt).
 dependencies = []
 classifiers = [
   "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
@@ -18,6 +18,9 @@ classifiers = [
   "Topic :: System :: Hardware :: Hardware Drivers",
   "Environment :: X11 Applications :: GTK",
 ]
+
+[project.optional-dependencies]
+gui = ["PyGObject>=3.42", "pycairo>=1.20"]
 
 [project.urls]
 Homepage = "https://github.com/GabrielRoncari/Hyperx-LINUX"
@@ -31,3 +34,6 @@ version = { attr = "hyperx_linux.__version__" }
 
 [tool.setuptools.packages.find]
 include = ["hyperx_linux*"]
+
+[tool.setuptools.package-data]
+hyperx_linux = ["data/hrtf-mit-kemar/*", "data/fonts/*"]

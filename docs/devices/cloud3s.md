@@ -21,7 +21,7 @@ NGENUITY Legacy 2.35 decompiled with ILSpy, NGENUITY 3.1's Rust hub disassembled
 request: 0C 02 03 <rw> 00 <op> <args…>     64 bytes, rw 01 = GET, 00 = SET
 reply:   0C 02 03 01 00 <op> <value…>      GET only
 event:   0D 02 03 00 <type> <value>
-buttons: 0F <bitmask>                       01 vol+, 02 vol−, 08 play/pause
+buttons: 0F <bitmask>                       consumer usages, see "Buttons" below
 ```
 
 **SETs are not acknowledged.** None of the SETs returns a `0x0C` report. Read the matching GET
@@ -58,6 +58,20 @@ flag goes only on the last band packet when switching presets, not while draggin
 | 5 | sidetone | ✔ `0D 02 03 00 05 01` |
 | 10 | charging | — |
 | 12 | headset link | — |
+
+## Buttons
+
+Report `0F` belongs to the Consumer Control collection of interface 3 (from the report descriptor):
+six 1-bit fields, `01` volume up (`E9`), `02` volume down (`EA`), `04` mute (`E2`), `08` play/pause
+(`CD`), `10` next (`B5`), `20` previous (`B6`), then 2 padding bits. The kernel turns them into the
+media keys of the "Consumer Control" input device. Play/pause, next and previous come from the
+multi-function button (usually 1, 2 and 3 presses).
+
+NGENUITY 3.1 has no button settings for this headset (`Cloud3SWirelessConfiguration` doesn't
+implement `IKeyConfiguration`; only the Cloud Alpha 2's DAC keys do, and their actions run on the PC).
+HyperX Linux does the same on the computer (`hyperx_linux/buttons.py`): it takes the input device
+with `EVIOCGRAB` while a button is remapped, runs the action and passes the other buttons on through
+`uinput`. Nothing is written to the headset.
 
 ## Not possible
 

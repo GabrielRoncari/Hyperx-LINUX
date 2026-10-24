@@ -22,6 +22,11 @@ Generated from the drivers by `python3 -m tools.gen_docs`; do not edit by hand.
 (see [support levels](CONTRIBUTING.md#support-levels)). Protocol notes per family are in
 [docs/devices](docs/devices). Bootloader / firmware-update ids are never opened.
 
+Every headset also gets the [audio engine](docs/audio.md) (spatial audio, software equalizer when it has
+none of its own, voice processing), made by PipeWire on the computer: spatial, spatial-width,
+spatial-experience, software-eq, mic-noise, mic-highpass, mic-preset. Headsets whose buttons reach the
+computer as media keys can give them other actions (buttons, button-macros), done by the app.
+
 """ + supported_table(markdown=True)
 
 

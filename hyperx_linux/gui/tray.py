@@ -133,14 +133,18 @@ class Tray:
     def __post_init__(self):
         self._revision = 1
         self._bus = Gio.bus_get_sync(Gio.BusType.SESSION)
-        self._name = f"org.kde.StatusNotifierItem-{os.getpid()}-1"
+        # Inside Flatpak the app may not own arbitrary bus names, so it registers its unique
+        # connection name instead (allowed by the spec; KDE, COSMIC and AppIndicator accept it).
+        self._in_flatpak = os.path.exists("/.flatpak-info")
+        self._name = self._bus.get_unique_name() if self._in_flatpak else f"org.kde.StatusNotifierItem-{os.getpid()}-1"
         sni = Gio.DBusNodeInfo.new_for_xml(SNI_XML).interfaces[0]
         menu = Gio.DBusNodeInfo.new_for_xml(MENU_XML).interfaces[0]
         self._regs = [
             self._bus.register_object(SNI_PATH, sni, self._sni_call, self._sni_prop, None),
             self._bus.register_object(MENU_PATH, menu, self._menu_call, self._menu_prop, None),
         ]
-        Gio.bus_own_name_on_connection(self._bus, self._name, Gio.BusNameOwnerFlags.NONE, None, None)
+        if not self._in_flatpak:
+            Gio.bus_own_name_on_connection(self._bus, self._name, Gio.BusNameOwnerFlags.NONE, None, None)
         # Register now, and again whenever the panel (watcher) restarts.
         Gio.bus_watch_name_on_connection(
             self._bus, WATCHER, Gio.BusNameWatcherFlags.NONE, lambda *a: self._register(), None

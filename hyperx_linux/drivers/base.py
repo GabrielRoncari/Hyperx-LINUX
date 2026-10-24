@@ -28,6 +28,7 @@ class Driver:
     support: ClassVar[Support]
     ids: ClassVar[tuple[tuple[int, int, str], ...]]  # (vid, pid, variant)
     interfaces: ClassVar[tuple[int, ...] | None] = None  # USB interfaces to open; None = any (udev too)
+    extra_interfaces: ClassVar[tuple[int, ...]] = ()  # also granted by udev; the driver opens them itself
     controls: ClassVar[tuple[Control, ...]] = ()
     sources: ClassVar[tuple[str, ...]] = ()  # where the protocol comes from
     poll_seconds: ClassVar[float] = 60.0  # light refresh (battery) when nothing else happens
@@ -95,5 +96,17 @@ class Driver:
 
     def keepalive(self) -> None:
         """Called every keepalive_seconds when set (devices that forget state)."""
+
+    def load_state(self, saved: dict) -> None:
+        """Settings kept by the app (persisted controls), without device I/O. Used by the CLI."""
+
+    def restore(self, saved: dict) -> None:
+        """Re-apply persisted settings on connect; drivers may batch the writes."""
+        for c in self.controls:
+            if c.persist and saved.get(c.id) is not None:
+                self.apply(c.id, saved[c.id])
+
+    def close(self) -> None:
+        """Release anything the driver opened besides its node."""
 
     keepalive_seconds: ClassVar[float | None] = None

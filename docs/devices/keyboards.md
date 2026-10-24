@@ -16,9 +16,10 @@ document or the driver.** Nothing here has been re-validated on hardware by this
   picked a colour.
 - Brightness is a hardware command on families C and D. On families A and B no brightness command is
   known, so the driver scales the RGB values (software brightness).
-- **Nothing is written to the onboard profiles.** Profile/effect/keymap/macro commands, factory resets
-  and firmware commands are never sent (see each "Avoid" list). Family E is not implemented because every
-  change writes flash.
+- **Nothing is written to the onboard profiles**, except on the Alloy Origins 65, 60, Alloy Origins and
+  Elite 2, which have their own driver with NGENUITY's full protocol (see the sections at the end). Elsewhere profile/effect/keymap/macro
+  commands, factory resets and firmware commands are never sent (see each "Avoid" list). Family E is not
+  implemented because every change writes flash.
 - Not available for any keyboard: **game mode** (Windows-key lock), **polling rate** and **battery**.
   No source documents a host command for them. Game mode is a physical key handled by firmware (the
   Elite RGB stores what it blocks inside the profile); the Mars "gaming mode" is a Windows keyboard hook
@@ -343,3 +344,102 @@ The driver wins in every case below.
 | linux-usb.org `usb.ids` | Alloy FPS Pro ID | GPL-2.0-or-later / BSD-3-Clause |
 
 Licences marked "none declared" were used for facts only (offsets, byte values); no code was copied.
+
+## Alloy Origins 65 — full protocol (NGENUITY Legacy 2.38)
+
+Source: static analysis of NGENUITY Legacy 2.38, namespace `NGenuity2.Devices.Keyboard.Origins65`
+(`CMDKBAlloyOrigins65*`, `KeyboardAlloyOrigins65`, `ProfileAlloyOrigins65`). Every command below was
+sent to a real keyboard (`03F0:038F`, firmware 21.04, the version NGENUITY ships) and acknowledged.
+Driver: `hyperx_linux/drivers/origins65.py`, tests: `tests/test_origins65.py`.
+
+**Transport.** NGENUITY talks to interface 3 (`MI_03`), which Linux can't bind (it has only an OUT
+endpoint: `usbhid: couldn't find an input interrupt endpoint`). The firmware answers the same feature
+reports on interface 0, the boot keyboard, so everything goes through that hidraw node with report id 0.
+Offsets are NGENUITY's 65-byte buffers (byte 0 is the report id).
+
+- Command: `[1]=04 [2]=cmd`, parameters from `[9]`. A GET_FEATURE right after returns `[2]=cmd [4]=01`
+  when accepted (that is NGENUITY's `VerifyCommand`); for queries the next GET_FEATURE returns the data.
+- Data: 64 bytes from `[1]`. The last packet of a block carries `AA 55` at `[63..64]`. GET_FEATURE after
+  a data packet returns zeros.
+- Commit: command `02`. Its acknowledgement carries a 16-bit value at `[5..6]` (`fa 05` after a profile).
+- After each stored packet the keyboard sends `05 AC AC AC` on interface 1 (collection `0xFFFF`,
+  report 5). NGENUITY waits up to 500 ms for it. Other notifications on that report: `05 04 key state`
+  (key events), `05 07 x on` (game mode toggled on the keyboard), `05 08 level` (brightness, 0-255),
+  `05 09 on key r g b` (Fn lock).
+- **Erase.** Commands `25` (macros) and `53` (lighting frames) first erase their area, about 0.45 s
+  measured, and silently drop packets that arrive meanwhile: the keyboard then keeps waiting for the
+  missing ones and swallows the next commands as data, until it times out (under 3 s). NGENUITY never
+  sees this because it waits for the interface 1 ack; without that node, wait ~0.8 s after these two.
+  `21` (key matrix), `23` (lighting config), `27` (profile) and `29` don't erase.
+
+**Slots.** `0-2` are the onboard profiles, `3` is the active one (NGENUITY's `CurrentPresetID`); a
+command for slot `s` is `base + 16*s`.
+
+| cmd | what | parameters / data |
+|---|---|---|
+| `05` | device info | `[9]=1`; data: VID `[9..10]`, PID `[13..14]`, firmware `[18..19]` (BCD), country `[25]` (57 = US) |
+| `26+16s` / `56` | read profile | `[9]=1`; data `[1..64]` = profile |
+| `27+16s` / `57` | store profile | `[9]=1`, then the 64-byte profile with `AA 55`, then `02` |
+| `67` | apply profile now ("AP mode") | same as `57` with profile id 0; not visible to `56` |
+| `21+16s` | key matrix | `[9]=11`, 10 packets of 16 slots x 4 bytes, an `AA 55` packet, `02` |
+| `18`, `25+16s`, `19` | macros | `18`; `25` with `[9]`=chunks+1 (**erases**); chunks; `AA 55` packet; `19`; `02` with `AA 55` |
+| `53+16s` | lighting frames | `[9..10]`=frames x 5 (LE16, **erases**); 5 packets per frame of 16 x `80 R G B`; `02` |
+| `23+16s` | lighting config | `[9]=2`; `[1]=08 [60]=frame interval [62]=frames` + `AA 55`; trigger packet + `AA 55`; `02` |
+| `80+16s` / `81+16s` | Fn lock write / read | `[9]`=count; one packet per entry (`[14]` count `[15]` index `[16]` key `[17..19]` RGB) |
+| `29+16s` | forget synced preset | `[9]=2`, a zero packet, an `AA 55` packet, `02` |
+| `FD` | factory reset | then wait 1 s, `02` |
+| `F2` | direct mode | `[9]=5`, 5 packets of 16 x `81 R G B` (80 LEDs) |
+| `50` | read key matrix | not answered by firmware 21.04; NGENUITY never calls it |
+
+Profile (64 bytes): `[0]` profile id, `[4]` game mode, `[8]` blocks (`1` Alt+Tab, `2` Alt+F4, `4`
+Shift+Tab, `8` Ctrl+Esc), `[12]` brightness 0-255, `[13]` Fn-lock count, `[15]` Fn-lock key (`FF`
+none), `[16..18]` Fn-lock colour, `[62..63]` = `AA 55`.
+
+Key matrix slot (4 bytes): `00` default; `01 t v` mouse (`01 01 b` button bit, `03 01`/`03 FF` wheel,
+`02 01` double click); `02 mods usage` key (`mods` = HID modifier mask, usage 0 for a lone modifier);
+`03 lo hi` consumer usage; `05` disabled; `02 00 A4` Fn; `06 index mode` macro (`mode` 0 once,
+2 repeat until pressed again, 3 repeat while held). Slots are the key's matrix position (`y*6+x`); the
+Fn layer is slot + 78. On ANSI the slot equals the LED index; on ISO, Enter and `#` differ.
+
+Macro table: 100 little-endian 32-bit offsets (400 bytes), then per macro a 32-bit item count, 4 zero
+bytes and 4-byte items: pause after the item (LE16, ms), code, flags. Keys: usage, `30` (`B0` pressed).
+Mouse buttons: button bit, `10` (`90` pressed). Wheel: `01`/`FF`, `A0`.
+
+Lighting frames: NGENUITY renders effects at 20 fps, up to 120 frames, frame interval byte = ms per
+frame minus 16 (`34` at 20 fps). The trigger packet sets a reactive effect the keyboard runs itself:
+`[1]` `04` fade, `05` explosion, `06` HyperX flame; colours at `[2..4]` and `[6..8]`; `[58]=1` random;
+`[60]` speed (0 fast .. 255 slow). Saving runs: frames, config, profile of the slot (`27+16s`), active
+profile (`57`), key matrix and macros of the slot, live profile (`67`).
+
+Brightness on this keyboard is only the profile byte; NGENUITY doesn't scale colours in software, so the
+hardware value also dims the direct-mode stream.
+
+
+## Alloy Origins 60, Alloy Origins and Alloy Elite 2 — what differs
+
+`ngenuity_kb.py` drives the four models with one class and the differences below, each taken from that
+model's NGENUITY Legacy 2.38 module (`KeyboardAlloyOrigins60`, `KeyboardAlloyOrigins`,
+`KeyboardAlloyEliteII` and their `CMDKB…` command classes). Direct mode is confirmed on all of them by
+OpenRGB; everything that writes to the onboard memory is marked experimental until someone confirms
+it on the keyboard. Brightness on these three is applied to the streamed colours (no profile byte is
+known to work), and saved lighting is rendered at that brightness.
+
+| | Origins 65 | Origins 60 | Alloy Origins | Elite 2 |
+|---|---|---|---|---|
+| LEDs / `F2` packets | 80 / 5 | 80 / 5 | 144 / 9 | 144 / 9 (126-143 light bar) |
+| Key matrix | 160 x 4 bytes, `[9]=11` | 144 x 8 bytes, `[9]=19` | 144 x 4 bytes, `[9]=10` | 144 x 4 bytes, `[9]=10`, wrapped in `19` … `18` |
+| Fn layer | slot + 78 | slot + 72 | none | none |
+| Fn lock | list, command `80+16s` | key action `07 R G B` | none | none |
+| Macros | `18`, `25` (chunks+1), chunks, `AA 55`, `19`, `02`+`AA 55` | `25` (chunks), chunks, `02`+`AA 55` | `18`, `E0`, `25`, chunks, `02`+`AA 55`, `19` | `18`, `25`, chunks, `02`+`AA 55`, `19` |
+| Live profile id (`67` `[0]`) | 0 | 3 | 0 | 3 |
+| Profile bytes always set | — | `[16]=1` | — | — |
+| Keep-alive | — | — | `E0` every 0.5 s while streaming and before matrix, macro and live-profile writes | — |
+| Saved frames | 120, erase ~0.45 s | 120 | 110, erase up to 3 s | 110, erase up to 3 s |
+| Saving lighting | frames, config, `27+16s`, `57`, keymap, `67` | same as the 65 | keymap, frames, config (2 s pause), `F0`, `57`, `27+16s`, `67` | frames, config, `27+16s`, keymap, `67` (no `57`) |
+| Factory reset | `29+16s` x3, `FD`, `02` | same | not in NGENUITY | not in NGENUITY |
+| Layouts (country byte `[25]` of `05`) | ISO for 59-63, 67, 68, 73-75 | ISO for 40-44, 48, 49, 54-56 | 104/105/106/108 keys | 104/105/106/108 keys |
+
+On the 144-key models NGENUITY reads country codes as: below 2 and 18, 24, 26-28 → 104 keys; 2-6, 19,
+20, 29-31 → 105 (ISO); 7 → 106 (JIS); 8 → 108 (ABNT2). Other codes have no layout in NGENUITY; the
+driver uses 104. The key positions of all layouts are in `drivers/kb_layouts.py`, generated from
+NGENUITY's KeyMap files.

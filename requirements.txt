@@ -1,0 +1,12 @@
+# Python packages for the window and the tray icon. The command line needs only Python 3.8+.
+#
+# Easiest: ./install.sh (or the one-line install in the README) installs these together with GTK 4
+# and libadwaita, which are system libraries pip can't install, using your package manager.
+#
+# With pip (e.g. in a virtualenv), GTK 4 and libadwaita must still come from the distribution
+# (gir1.2-gtk-4.0 and gir1.2-adw-1 on Debian/Ubuntu). pip compiles PyGObject and pycairo, which
+# needs a C compiler, pkg-config and the cairo and gobject-introspection development headers.
+# PyGObject 3.52+ needs GLib 2.80+: on older systems (Ubuntu 22.04, Debian 12) install "PyGObject<3.52".
+# To skip compiling, reuse the distribution's packages: python3 -m venv --system-site-packages .venv
+PyGObject>=3.42
+pycairo>=1.20

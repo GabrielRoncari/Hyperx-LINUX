@@ -2,10 +2,13 @@ name: tests
 on: [push, pull_request]
 jobs:
   unit:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: ["3.10", "3.12"]
+        include:
+          - {os: ubuntu-22.04, python: "3.8"}   # oldest supported (CLI only distros: Ubuntu 20.04)
+          - {os: ubuntu-latest, python: "3.10"}
+          - {os: ubuntu-latest, python: "3.13"}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -13,3 +16,36 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m unittest -v
       - run: python -m hyperx_linux udev-rules
+  installer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck -s sh install.sh   # POSIX sh: must also run under dash and BusyBox ash
+  distros:
+    # install.sh as root in each distribution's image: dependencies, launcher and GUI libraries
+    name: install on ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {image: "debian:12"}
+          - {image: "ubuntu:22.04"}
+          - {image: "fedora:latest"}
+          - {image: "opensuse/tumbleweed:latest"}
+          - {image: "archlinux:latest", prep: "pacman -Sy --noconfirm"}
+          - {image: "ghcr.io/void-linux/void-glibc-full:latest", prep: "xbps-install -Syu xbps"}
+          - {image: "alpine:3.20"}
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          IMAGE: ${{ matrix.image }}
+          PREP: ${{ matrix.prep }}
+        run: |
+          docker run --rm -e PREP -v "$PWD:/src:ro" "$IMAGE" sh -c '
+            set -e
+            eval "${PREP:-:}"
+            sh /src/install.sh --no-autostart
+            python3 -c "import gi, cairo; gi.require_version(\"Gtk\", \"4.0\"); gi.require_version(\"Adw\", \"1\"); from gi.repository import Gtk, Adw; gi.require_foreign(\"cairo\")"
+            /root/.local/bin/hyperx-linux --version
+            /root/.local/bin/hyperx-linux udev-rules > /dev/null'

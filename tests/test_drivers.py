@@ -7,7 +7,8 @@ from hyperx_linux.drivers import DRIVERS
 from hyperx_linux.drivers.headset_66 import CloudIIIWireless
 from hyperx_linux.drivers.headset_ffbb import CloudStinger2Wireless
 from hyperx_linux.drivers.headset_misc import CloudAlpha2Wireless, CloudIIIWired
-from hyperx_linux.drivers.keyboards import AlloyEliteRGB, AlloyOrigins60, AlloyOriginsCore, AlloyRise75
+from hyperx_linux.drivers.keyboards import AlloyEliteRGB, AlloyOriginsCore, AlloyRise75
+from hyperx_linux.drivers.ngenuity_kb import AlloyElite2, AlloyOrigins, AlloyOrigins60
 from hyperx_linux.drivers.mouse_dseries import Dart
 from hyperx_linux.drivers.mouse_universal import Haste2Wireless
 from tests.fakes import FakeNode, Recorder
@@ -213,12 +214,25 @@ class Keyboards(unittest.TestCase):
 
     def test_f2_family_init_and_packets(self):
         node = FakeNode()
-        AlloyOrigins60(node, Recorder()).apply("color", (1, 2, 3))
+        d = AlloyOrigins60(node, Recorder())
+        d.apply("color", (1, 2, 3))
+        d.keepalive()  # the session streams the frame
         self.assertEqual(node.features[0][1:3], b"\x04\xf2")
         self.assertEqual(node.features[0][9], 5)
         self.assertEqual(len(node.features), 6)
-        self.assertEqual(node.features[1][5:9], b"\x81\x01\x02\x03")  # slot 1 = ESC; slot 0 is empty
+        self.assertEqual(node.features[1][5:9], b"\x81\x01\x02\x03")  # LED 1 = ESC; LED 0 has no key
         self.assertEqual(node.features[1][1:5], b"\x81\x00\x00\x00")
+
+    def test_full_size_frames_and_keepalive(self):
+        for cls, keepalive in ((AlloyOrigins, True), (AlloyElite2, False)):
+            node = FakeNode()
+            d = cls(node, Recorder())
+            d.apply("color", (1, 2, 3))
+            d.keepalive()
+            sent = [f[2] for f in node.features]
+            self.assertEqual(sent.count(0xE0), 1 if keepalive else 0, cls.__name__)
+            frames = [f for f in node.features if f[2] != 0xE0]
+            self.assertEqual((frames[0][2], frames[0][9], len(frames)), (0xF2, 9, 10))
 
     def test_elite_channels(self):
         node = FakeNode()

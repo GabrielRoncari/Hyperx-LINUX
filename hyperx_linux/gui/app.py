@@ -1,6 +1,7 @@
 """Application: manager lifecycle, tray icon, notifications and preferences."""
 from __future__ import annotations
 
+import os
 import sys
 import time
 
@@ -10,27 +11,17 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gdk, Gio, GLib, Gtk  # noqa: E402
 
-from .. import REPO_URL, __version__  # noqa: E402
+from .. import APP_ID, REPO_URL, __version__  # noqa: E402
 from .. import controls as C  # noqa: E402
 from ..i18n import _  # noqa: E402
 from ..manager import Manager, Session  # noqa: E402
 from .page import battery_icon  # noqa: E402
+from . import autostart, compat, theme  # noqa: E402
 from .tray import MenuItem, Notifier, Tray  # noqa: E402
 from .trayicon import battery_pixmaps  # noqa: E402
 from .window import APP_NAME, Window  # noqa: E402
 
-APP_ID = "io.github.gabrielroncari.HyperXLinux"
 USER_ECHO_S = 2.0  # changes made from the UI don't raise notifications
-
-CSS = """
-.battery-big { font-size: 42px; font-weight: 800; font-feature-settings: "tnum"; }
-.eq-band label { font-size: 11px; font-feature-settings: "tnum"; }
-.hero { padding: 18px; }
-levelbar.battery trough { min-height: 8px; }
-levelbar.battery block.filled { background-color: @success_color; }
-levelbar.battery.low block.filled { background-color: @error_color; }
-"""
-
 
 class App(Adw.Application):
     def __init__(self):
@@ -51,10 +42,7 @@ class App(Adw.Application):
     def do_startup(self):
         Adw.Application.do_startup(self)
         self.hold()  # keep running in the tray with the window closed
-        css = Gtk.CssProvider()
-        css.load_from_string(CSS)
-        Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css,
-                                                  Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        theme.apply()
         for name, cb in (("about", self._about), ("quit", lambda *_a: self._quit()),
                          ("show", lambda *_a: self.show_window()), ("preferences", self._preferences)):
             act = Gio.SimpleAction.new(name, None)
@@ -107,14 +95,11 @@ class App(Adw.Application):
         self.manager.config.set_device_value(session.driver_id, "eq_preset", name)
 
     def _about(self, *_a):
-        Adw.AboutDialog(application_name=APP_NAME, application_icon="audio-headset-symbolic",
-                        version=__version__, website=REPO_URL, license_type=Gtk.License.GPL_3_0,
-                        comments=_("Linux control panel for HyperX peripherals (unofficial).")
-                        ).present(self.window)
+        compat.present_about(self.window, APP_NAME, app_icon(), __version__, REPO_URL,
+                             _("Linux control panel for HyperX peripherals (unofficial)."))
 
     def _preferences(self, *_a):
         cfg = self.manager.config
-        dialog = Adw.PreferencesDialog()
         page = Adw.PreferencesPage()
         group = Adw.PreferencesGroup(title=_("Preferences"))
         rows = []
@@ -124,18 +109,24 @@ class App(Adw.Application):
             ("allow_experimental", "Allow experimental drivers",
              "Lets drivers that nobody has tested on real hardware change settings"),
         ):
-            row = Adw.SwitchRow(title=_(title), subtitle=_(subtitle), active=bool(cfg[key]))
-            row.connect("notify::active", lambda r, _p, k=key: self._set_pref(k, r.get_active()))
+            row, switch = compat.switch_row(_(title), _(subtitle), bool(cfg[key]))
+            switch.connect("notify::active", lambda w, _p, k=key: self._set_pref(k, w.get_active()))
             rows.append(row)
-        low = Adw.SpinRow.new_with_range(5, 50, 5)
-        low.set_title(_("Low battery warning (%)"))
-        low.set_value(cfg["low_battery"])
-        low.connect("notify::value", lambda r, _p: self._set_pref("low_battery", int(r.get_value())))
+        start = autostart.is_enabled(APP_ID) or bool(cfg.data.get("autostart"))
+        row, switch = compat.switch_row(_("Start in the tray at login"), "", start)
+        switch.connect("notify::active", lambda w, _p: self._set_autostart(w.get_active()))
+        rows.append(row)
+        low, spin = compat.spin_row(_("Low battery warning (%)"), "", 5, 50, 5)
+        spin.set_value(cfg["low_battery"])
+        spin.connect("notify::value", lambda w, _p: self._set_pref("low_battery", int(w.get_value())))
         for row in (*rows, low):
             group.add(row)
         page.add(group)
-        dialog.add(page)
-        dialog.present(self.window)
+        compat.present_preferences(self.window, page)
+
+    def _set_autostart(self, enabled: bool) -> None:
+        autostart.set_enabled(APP_ID, enabled)
+        self.manager.config["autostart"] = enabled
 
     def _set_pref(self, key, value):
         self.manager.config[key] = value
@@ -232,5 +223,18 @@ class App(Adw.Application):
             self.tray.set_menu(menu)
 
 
+def app_icon() -> str:
+    icons = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
+    return APP_ID if icons.has_icon(APP_ID) else "audio-headset"
+
+
 def main(argv=None) -> int:
+    if not Gtk.init_check() or Gdk.Display.get_default() is None:
+        print(_("No graphical session found. The command line works anywhere: hyperx-linux -h"), file=sys.stderr)
+        return 1
+    # running from a checkout: the app icon isn't installed in an icon theme yet
+    icons = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "icons")
+    if os.path.isdir(icons):
+        Gtk.IconTheme.get_for_display(Gdk.Display.get_default()).add_search_path(icons)
+    Gtk.Window.set_default_icon_name(APP_ID)
     return App().run(argv if argv is not None else sys.argv)

@@ -4,13 +4,13 @@ from __future__ import annotations
 from ..catalog import DETECTION_ONLY, is_firmware_mode, product
 from ..hid import NodeInfo
 from . import (cloud3s, headset_21, headset_66, headset_ffbb, headset_misc, keyboards, lighting, mouse_dseries,
-               mouse_feature7, mouse_universal)
+               mouse_feature7, mouse_universal, ngenuity_kb)
 from .base import Driver, Kind, Support
 
 DRIVERS: tuple[type[Driver], ...] = (
     *cloud3s.MODELS, *headset_ffbb.MODELS, *headset_66.MODELS, *headset_21.MODELS, *headset_misc.MODELS,
     *mouse_universal.MODELS, *mouse_dseries.MODELS, *mouse_feature7.MODELS,
-    *keyboards.MODELS, *lighting.MODELS,
+    *keyboards.MODELS, *ngenuity_kb.MODELS, *lighting.MODELS,
 )
 
 DETECTION_NOTE = "Charging/firmware interface: use the receiver"
@@ -31,7 +31,11 @@ def display_name(info: NodeInfo) -> str:
     if known:
         suffix = " (USB-C)" if (info.vid, info.pid) in DETECTION_ONLY else ""
         return known[0] + suffix
-    name = info.name.removeprefix("HP, Inc ").removeprefix("Kingston ").strip()
+    name = info.name
+    for vendor in ("HP, Inc ", "Kingston "):  # str.removeprefix needs Python 3.9
+        if name.startswith(vendor):
+            name = name[len(vendor):]
+    name = name.strip()
     return name or f"HyperX device {info.usb_id}"
 
 

@@ -1,0 +1,39 @@
+# Build:   flatpak run org.flatpak.Builder --user --install --force-clean build-dir packaging/flatpak/io.github.gabrielroncari.HyperXLinux.yml
+# Bundle:  flatpak build-bundle ~/.local/share/flatpak/repo hyperx-linux.flatpak io.github.gabrielroncari.HyperXLinux
+app-id: io.github.gabrielroncari.HyperXLinux
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+command: hyperx-linux
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  # /dev/hidraw* for the HID control interfaces; access itself is granted by the host's udev rules
+  - --device=all
+  # tray icon (StatusNotifierItem) and desktop notifications
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --talk-name=org.freedesktop.Notifications
+  # pause lighting keep-alives before suspend
+  - --system-talk-name=org.freedesktop.login1
+  # audio engine (spatial audio, equalizer, voice processing): the runtime has no PipeWire daemon nor its
+  # filter-chain/echo-cancel modules, so the filter graphs run on the host through flatpak-spawn
+  - --talk-name=org.freedesktop.Flatpak
+modules:
+  - name: hyperx-linux
+    buildsystem: simple
+    build-commands:
+      - install -d /app/share/hyperx-linux
+      - cp -r hyperx_linux /app/share/hyperx-linux/
+      - install -Dm755 packaging/flatpak/hyperx-linux.sh /app/bin/hyperx-linux
+      - install -Dm644 packaging/flatpak/io.github.gabrielroncari.HyperXLinux.desktop -t /app/share/applications
+      - install -Dm644 data/io.github.gabrielroncari.HyperXLinux.metainfo.xml -t /app/share/metainfo
+      - install -Dm644 data/icons/io.github.gabrielroncari.HyperXLinux.svg -t /app/share/icons/hicolor/scalable/apps
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - .git
+          - re
+          - build-dir
+          - .flatpak-builder

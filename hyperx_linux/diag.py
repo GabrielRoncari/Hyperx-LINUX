@@ -5,6 +5,7 @@ are verified or community-confirmed, unless --probe is given. Serial numbers are
 """
 from __future__ import annotations
 
+import os
 import platform
 from collections import defaultdict
 
@@ -18,7 +19,7 @@ def _hexdump(data: bytes) -> str:
 
 
 def report(probe: bool = False) -> str:
-    out = [f"## hyperx-linux diag\n\n- version: {__version__}\n- kernel: {platform.release()}\n"]
+    out = [f"## hyperx-linux diag\n\n- version: {__version__}\n- kernel: {platform.release()}\n{_environment()}"]
     groups = defaultdict(list)
     for n in enumerate_nodes():
         groups[n.usb_path or n.path].append(n)
@@ -62,3 +63,27 @@ def _read_values(info, driver_cls) -> str:
         return f"- read failed: {type(e).__name__}: {e}\n"
     finally:
         node.close()
+
+
+def _environment() -> str:
+    """Distribution and library versions, for compatibility reports."""
+    lines = [f"- python: {platform.python_version()}"]
+    try:  # inside Flatpak, /etc/os-release describes the runtime; the host's is in /run/host
+        with open("/run/host/os-release" if os.path.exists("/run/host/os-release") else "/etc/os-release") as f:
+            fields = dict(line.rstrip().split("=", 1) for line in f if "=" in line)
+        lines.append(f"- distro: {fields.get('PRETTY_NAME', '?').strip(chr(34))}")
+    except OSError:
+        pass
+    if os.path.exists("/.flatpak-info"):
+        lines.append("- packaging: flatpak")
+    try:
+        import gi
+        gi.require_version("Gtk", "4.0")
+        gi.require_version("Adw", "1")
+        from gi.repository import Adw, Gtk
+        lines.append(f"- gtk: {Gtk.get_major_version()}.{Gtk.get_minor_version()}.{Gtk.get_micro_version()}")
+        lines.append(f"- libadwaita: {Adw.get_major_version()}.{Adw.get_minor_version()}.{Adw.get_micro_version()}")
+        lines.append(f"- pygobject: {'.'.join(map(str, gi.version_info))}")
+    except (ImportError, ValueError) as e:
+        lines.append(f"- gui: unavailable ({e})")
+    return "\n".join(lines) + "\n"

@@ -1,0 +1,26 @@
+name: flatpak
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    permissions:
+      contents: write   # attach the bundle to the release on tags
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: hyperx-linux.flatpak
+          manifest-path: packaging/flatpak/io.github.gabrielroncari.HyperXLinux.yml
+          cache-key: flatpak-builder-${{ github.sha }}
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: hyperx-linux.flatpak
