@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hyperx-linux"
+dynamic = ["version"]
+description = "Linux control panel for HyperX peripherals (unofficial NGENUITY replacement)"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+requires-python = ">=3.10"
+# The GUI needs PyGObject with GTK 4.12+ and libadwaita 1.5+, best installed from the distribution
+# (python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1). The CLI only needs the standard library.
+dependencies = []
+classifiers = [
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Operating System :: POSIX :: Linux",
+  "Topic :: System :: Hardware :: Hardware Drivers",
+  "Environment :: X11 Applications :: GTK",
+]
+
+[project.urls]
+Homepage = "https://github.com/GabrielRoncari/Hyperx-LINUX"
+Issues = "https://github.com/GabrielRoncari/Hyperx-LINUX/issues"
+
+[project.scripts]
+hyperx-linux = "hyperx_linux.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "hyperx_linux.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["hyperx_linux*"]

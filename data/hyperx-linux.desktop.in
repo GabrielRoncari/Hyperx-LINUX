@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=HyperX Linux
+GenericName=Peripheral settings
+Comment=Battery, microphone, EQ and lighting for HyperX peripherals
+Exec=@BIN@ @ARGS@
+Icon=audio-headset
+Terminal=false
+Categories=Settings;HardwareSettings;AudioVideo;
+Keywords=hyperx;ngenuity;headset;mouse;keyboard;microphone;
+StartupNotify=false
